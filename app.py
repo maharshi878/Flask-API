@@ -4,12 +4,12 @@ import pandas as pd
 from rapidfuzz import process
 
 app = Flask(__name__)
-CORS(app, origins=["https://maharshi878.github.io"])
+CORS(app)  # Enable CORS for frontend communication
 
 def load_eco_scores(csv_file):
     """Load eco scores from a CSV file into a dictionary."""
     df = pd.read_csv(csv_file)
-    eco_scores = dict(zip(df["Material Name"], df["Eco Score"]))
+    eco_scores = dict(zip(df["Material Name"].str.lower(), df["Eco Score"]))
     return eco_scores
 
 def correct_material_names(materials, eco_scores):
@@ -17,7 +17,7 @@ def correct_material_names(materials, eco_scores):
     corrected = {}
     suggestions = {}
     for mat, perc in materials.items():
-        best_match, score, _ = process.extractOne(mat, eco_scores.keys())
+        best_match, score, _ = process.extractOne(mat.lower(), eco_scores.keys())
         if score > 80:  # Acceptable confidence level
             corrected[best_match] = perc
         else:
@@ -27,8 +27,9 @@ def correct_material_names(materials, eco_scores):
 def calculate_weighted_eco_score(materials, eco_scores):
     """Calculate the weighted average eco score and list considered materials."""
     total_weight = sum(materials.values())
+    
     if total_weight == 0:
-        return "Error: Total weight cannot be zero.", []
+        return {"error": "Total weight cannot be zero."}, []
 
     weighted_score = sum((eco_scores.get(mat, 0) * (perc / total_weight)) for mat, perc in materials.items())
     considered_materials = list(materials.keys())
@@ -54,9 +55,9 @@ def calculate():
 
         for mat, perc in data.get("materials", {}).items():
             try:
-                materials[mat] = float(perc)
+                materials[mat.lower()] = float(perc)
             except ValueError:
-                return jsonify({"error": "Please enter values in the correct format."})
+                return jsonify({"error": f"Invalid percentage value for {mat}. Please enter a number."})
 
         eco_scores = load_eco_scores("eco_scores.csv")
         corrected, suggestions = correct_material_names(materials, eco_scores)
@@ -66,9 +67,7 @@ def calculate():
 
         score, considered = calculate_weighted_eco_score(corrected, eco_scores)
 
-        response = jsonify({"eco_score": score, "considered_materials": considered})
-        response.headers.add("Access-Control-Allow-Origin", "*")  # Ensure CORS is set
-        return response
+        return jsonify({"eco_score": score, "considered_materials": considered})
 
     except Exception as e:
         return jsonify({"error": str(e)})

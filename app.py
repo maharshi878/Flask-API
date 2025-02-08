@@ -13,16 +13,31 @@ def load_eco_scores(csv_file):
     return eco_scores
 
 def correct_material_names(materials, eco_scores):
-    """Correct material names using AI-powered fuzzy matching."""
+    """Correct material names using fuzzy matching and default to common materials."""
     corrected = {}
     suggestions = {}
+
+    material_defaults = {
+        "cotton": "Conventional Cotton",
+        "polyester": "Polyester",
+        "nylon": "Nylon (Virgin)",
+        "wool": "Wool (Conventional)"
+    }
+
     for mat, perc in materials.items():
-        best_match, score, _ = process.extractOne(mat.lower(), eco_scores.keys())
-        if score > 80:  # Acceptable confidence level
+        mat_lower = mat.lower()
+        if mat_lower in material_defaults:
+            best_match = material_defaults[mat_lower].lower()
+        else:
+            best_match, score, _ = process.extractOne(mat_lower, eco_scores.keys())
+        
+        if best_match in eco_scores:
             corrected[best_match] = perc
         else:
             suggestions[mat] = best_match
+
     return corrected, suggestions
+
 
 def calculate_weighted_eco_score(materials, eco_scores):
     """Calculate the weighted average eco score and list considered materials."""

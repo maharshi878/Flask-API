@@ -2,3 +2,4 @@ flask
 pandas
 rapidfuzz
 gunicorn
+flask-cors
